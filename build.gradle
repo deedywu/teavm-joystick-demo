@@ -1,0 +1,31 @@
+allprojects {
+    group = 'com.libgdx.joystick'
+    version = '1.0.0'
+
+    repositories {
+        google()
+        maven { url 'https://maven.aliyun.com/repository/public' }
+        mavenCentral()
+    }
+}
+
+gradle.beforeProject { project ->
+    if (project == rootProject) {
+        return
+    }
+
+    if (!project.tasks.names.contains('wrapper')) {
+        project.tasks.register('wrapper') {
+            group = '构建辅助'
+            description = '把子模块的 wrapper 请求转发到根项目。'
+            dependsOn rootProject.tasks.named('wrapper')
+        }
+    }
+
+    if (!project.tasks.names.contains('prepareKotlinBuildScriptModel')) {
+        project.tasks.register('prepareKotlinBuildScriptModel') {
+            group = 'IDE'
+            description = '兼容 IDE 的 Gradle 同步。'
+        }
+    }
+}
