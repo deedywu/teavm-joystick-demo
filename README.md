@@ -8,7 +8,7 @@
 - Gradle Wrapper
 - libGDX 1.14.2
 - LWJGL3 桌面后端
-- GLFW 桌面后端(powered by teavm)
+- TeaVM Native GLFW 原生桌面后端
 - Web 后端(powered by teavm)
 - FreeType 字体渲染
 
@@ -47,31 +47,60 @@
 
 ### 运行 TeaVM GLFW 原生桌面版
 
+这是原生构建链路，不是普通的 JVM 启动方式。
+
+常用任务：
+
+- `:desktop-glfw:gdx_teavm_glfw_generate`
+- `:desktop-glfw:gdx_teavm_glfw_build`
+- `:desktop-glfw:gdx_teavm_glfw_run`
+
+Windows 11 + MSVC：
+
 ```powershell
-.\gradlew.bat desktop-glfw:gdx_teavm_glfw_build
+.\gradlew.bat :desktop-glfw:gdx_teavm_glfw_build
+```
+
+WSL2 Ubuntu 24.04 / Linux：
+
+```bash
+./gradlew :desktop-glfw:gdx_teavm_glfw_build
+```
+
+macOS arm64：
+
+```bash
+./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
 说明：
 
 - 模块目录：`desktop-glfw`
-- 首次 clone 后如果 `desktop-glfw/native/thirdparty/freetype` 为空，先执行 `git submodule update --init --recursive`
+- 依赖 `desktop-glfw/native/thirdparty/freetype` 这个 Git submodule
+- 如果 `desktop-glfw/native/thirdparty/freetype` 为空，先执行 `git submodule update --init --recursive`
+- 不要直接在 IDE 里运行 `com.libgdx.joystick.glfw.GlfwLauncher`
+- 日常调试游戏逻辑更适合 `:desktop-lwjgl3`
+- Windows 11 + MSVC 环境说明见 [desktop-glfw/readme-win11(msvc).md](desktop-glfw/readme-win11(msvc).md)
+- WSL2 Ubuntu 24.04 环境说明见 [desktop-glfw/readme-wsl2(ubuntu2404).md](desktop-glfw/readme-wsl2(ubuntu2404).md)
+- macOS arm64 环境说明见 [desktop-glfw/readme-mac(arm64).md](desktop-glfw/readme-mac(arm64).md)
 
 ### `desktop-glfw` 模块说明
 
-`desktop-glfw` 不是普通的 JVM 桌面启动模块，而是一条 TeaVM Native GLFW 构建链路。
+`desktop-glfw` 不是普通的 JVM 桌面启动模块，而是一条 TeaVM Native GLFW 原生构建链路。
 
 它的主要职责是：
 
 - 把 `core` 里的游戏逻辑通过 TeaVM 生成为 C 代码
-- 把生成出的 C 代码、本地 FreeType bridge、以及 `freetype` 第三方源码一起交给 CMake/MSVC 编译
+- 把生成出的 C 代码、本地 FreeType bridge、FreeType 源码 submodule、以及平台相关的原生依赖交给 CMake 编译
 - 产出可运行的原生桌面程序
 
 使用上建议注意这几点：
 
-- 不要直接把 `com.libgdx.joystick.glfw.GlfwLauncher` 当普通 Java `main()` 在 IDE 里运行
+- 不要直接把 `com.libgdx.joystick.glfw.GlfwLauncher` 当普通 Java `main()` 运行
 - 推荐通过 `desktop-glfw:gdx_teavm_glfw_generate`、`desktop-glfw:gdx_teavm_glfw_build`、`desktop-glfw:gdx_teavm_glfw_run` 这些任务驱动
 - `desktop-glfw/native/thirdparty/freetype` 来自 Git submodule，本地缺失时先执行 `git submodule update --init --recursive`
-- 该模块当前主要面向 Windows + MSVC 工具链
+- 目前已整理好 Windows 11 + MSVC、WSL2 Ubuntu 24.04 和 macOS arm64 三套文档
+- 如果只是调游戏逻辑，优先使用 `desktop-lwjgl3`
 
 ## 项目结构
 
@@ -91,4 +120,5 @@
 .\gradlew.bat build
 .\gradlew.bat desktop-lwjgl3:run
 .\gradlew.bat web-teavm:run
+.\gradlew.bat :desktop-glfw:gdx_teavm_glfw_build
 ```

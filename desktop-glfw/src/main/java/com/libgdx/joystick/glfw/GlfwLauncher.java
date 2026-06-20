@@ -11,7 +11,7 @@ public class GlfwLauncher {
         GLFWApplicationConfiguration configuration = new GLFWApplicationConfiguration();
         configuration.setTitle("方向指示器演示");
         configuration.setWindowedMode(960, 640);
-        configuration.setOpenGLEmulation(GLFWApplicationConfiguration.GLEmulation.GL30, 3, 2);
+        configuration.setOpenGLEmulation(GLFWApplicationConfiguration.GLEmulation.GL20, 3, 2);
         configuration.setForegroundFPS(60);
 
         new GLFWApplication(new JoystickDemo(), configuration);

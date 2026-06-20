@@ -163,6 +163,10 @@ list(APPEND SOURCES ${EXTERNAL_SOURCES_FREETYPE})
     String compileOptionBlock = '''
 set(GDX2D_FREETYPE_BRIDGE_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/gdx2d_freetype_bridge.h")
 
+if (UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND TARGET freetype)
+  target_compile_definitions(freetype PRIVATE _DEFAULT_SOURCE HAVE_UNISTD_H HAVE_FCNTL_H)
+endif()
+
 if (MSVC)
   target_compile_options(app PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
   if (TARGET freetype)
