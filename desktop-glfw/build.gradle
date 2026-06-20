@@ -1,0 +1,263 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
+        maven { url 'https://teavm.org/maven/repository/' }
+    }
+
+    dependencies {
+        classpath 'com.github.xpenatan.gdx-teavm:gdx-teavm-plugin:-SNAPSHOT'
+    }
+
+    configurations.classpath {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'org.teavm') {
+                details.useVersion '0.16.0-dev-1'
+            }
+        }
+    }
+}
+
+plugins {
+    id 'java'
+}
+
+apply plugin: 'com.github.xpenatan.gdx-teavm'
+
+def programFilesRoots = [
+    System.getenv('ProgramFiles'),
+    System.getenv('ProgramFiles(x86)'),
+    'C:\\Program Files',
+    'C:\\Program Files (x86)',
+    'D:\\Program Files',
+    'D:\\Program Files (x86)'
+].findAll { it != null }
+    .collect { new File(it) }
+    .findAll { it.isDirectory() }
+
+def findVisualStudioTool = { String relativePath ->
+    for (File rootDir : programFilesRoots) {
+        File vsDir = new File(rootDir, 'Microsoft Visual Studio')
+        if (!vsDir.isDirectory()) {
+            continue
+        }
+
+        File[] yearDirs = vsDir.listFiles()
+        if (yearDirs == null) {
+            continue
+        }
+
+        for (File yearDir : yearDirs.findAll { it.isDirectory() }) {
+            File[] editionDirs = yearDir.listFiles()
+            if (editionDirs == null) {
+                continue
+            }
+
+            for (File editionDir : editionDirs.findAll { it.isDirectory() }) {
+                File candidate = new File(editionDir, relativePath)
+                if (candidate.isFile()) {
+                    return [
+                        file   : candidate,
+                        edition: editionDir.name
+                    ]
+                }
+            }
+        }
+    }
+
+    return null
+}
+
+def visualStudioCMake = findVisualStudioTool('Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe')
+def visualStudioMsBuild = findVisualStudioTool('MSBuild/Current/Bin/MSBuild.exe')
+
+def patchGeneratedWindowsScript = { File scriptFile ->
+    if (!scriptFile.isFile()) {
+        return
+    }
+
+    String script = scriptFile.getText('UTF-8')
+
+    if (visualStudioCMake != null) {
+        String cmakePath = visualStudioCMake.file.path
+        script = script.replace(
+            'C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe',
+            cmakePath
+        )
+        script = script.replace(
+            'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe',
+            cmakePath
+        )
+    }
+
+    if (visualStudioMsBuild != null) {
+        String marker = 'set VS_EDITION='
+        String injected = """set VS_EDITION=
+if exist "${visualStudioMsBuild.file.path}" (
+    set "MSBUILD_PATH=${visualStudioMsBuild.file.path}"
+    set "VS_EDITION=${visualStudioMsBuild.edition}"
+    goto :found
+)
+"""
+
+        if (script.contains(marker) && !script.contains("set \"MSBUILD_PATH=${visualStudioMsBuild.file.path}\"")) {
+            script = script.replace(marker, injected)
+        }
+    }
+
+    scriptFile.write(script, 'UTF-8')
+}
+
+def patchGeneratedCMake = { File cmakeFile ->
+    if (!cmakeFile.isFile()) {
+        return
+    }
+
+    String cmake = cmakeFile.getText('UTF-8')
+    String marker = 'include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/stb/include")'
+    String includeBlock = marker + '''
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/freetype")
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype/include")
+'''
+
+    if (cmake.contains(marker) && !cmake.contains('external_cpp/src/freetype/include')) {
+        cmake = cmake.replace(marker, includeBlock)
+    }
+
+    String sourceMarker = '# Collect external C++ sources from etc1'
+    String sourceBlock = '''
+set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
+set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype"
+                 "${CMAKE_CURRENT_BINARY_DIR}/freetype-build"
+                 EXCLUDE_FROM_ALL)
+
+# Collect freetype bridge sources
+file(GLOB_RECURSE EXTERNAL_SOURCES_FREETYPE "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/src/*.c")
+list(APPEND SOURCES ${EXTERNAL_SOURCES_FREETYPE})
+
+''' + sourceMarker
+
+    if (cmake.contains(sourceMarker) && !cmake.contains('EXTERNAL_SOURCES_FREETYPE')) {
+        cmake = cmake.replace(sourceMarker, sourceBlock)
+    }
+
+    String winLinkMarker = 'target_link_libraries(app glfw3 opengl32 glew32s)'
+    if (cmake.contains(winLinkMarker)
+        && !cmake.contains('target_link_libraries(app glfw3 opengl32 glew32s freetype)')) {
+        cmake = cmake.replace(winLinkMarker, 'target_link_libraries(app glfw3 opengl32 glew32s freetype)')
+    }
+
+    String unixLinkMarker = 'target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW m)'
+    if (cmake.contains(unixLinkMarker) && !cmake.contains('GLEW::GLEW freetype m')) {
+        cmake = cmake.replace(unixLinkMarker, 'target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW freetype m)')
+    }
+
+    String compileOptionMarker = 'if (MSVC)'
+    String compileOptionBlock = '''
+set(GDX2D_FREETYPE_BRIDGE_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/gdx2d_freetype_bridge.h")
+
+if (MSVC)
+  target_compile_options(app PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
+  if (TARGET freetype)
+    target_compile_options(freetype PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
+  endif()
+elseif (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+  target_compile_options(app PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
+  if (TARGET freetype)
+    target_compile_options(freetype PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
+  endif()
+endif()
+
+''' + compileOptionMarker
+
+    if (cmake.contains(compileOptionMarker) && !cmake.contains('GDX2D_FREETYPE_BRIDGE_HEADER')) {
+        cmake = cmake.replace(compileOptionMarker, compileOptionBlock)
+    }
+
+    cmakeFile.write(cmake, 'UTF-8')
+}
+
+def syncNativeFreeTypeFiles = {
+    [
+        [from: file("$projectDir/native/src/freetype"), into: file("$buildDir/dist/glfw/c/external_cpp/src/freetype")],
+        [from: file("$projectDir/native/thirdparty/freetype"), into: file("$buildDir/dist/glfw/c/external_cpp/thirdparty/freetype")]
+    ].each { spec ->
+        if (!spec.from.isDirectory()) {
+            return
+        }
+
+        if (spec.into.exists()) {
+            spec.into.deleteDir()
+        }
+        spec.into.parentFile.mkdirs()
+        project.copy {
+            from(spec.from)
+            into(spec.into)
+        }
+    }
+}
+
+sourceCompatibility = 17
+targetCompatibility = 17
+
+sourceSets.main.resources.srcDirs += [rootProject.file('assets').path]
+
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'org.teavm') {
+            details.useVersion '0.16.0-dev-1'
+        }
+    }
+}
+
+dependencies {
+    implementation project(':core')
+}
+
+configurations.configureEach {
+    exclude group: 'com.badlogicgames.gdx', module: 'gdx-freetype'
+}
+
+gdxTeaVM {
+    assets(rootProject.file('assets'))
+
+    glfw {
+        mainClass.set('com.libgdx.joystick.glfw.GlfwLauncher')
+        minHeapSizeMb.set(64)
+        maxHeapSizeMb.set(512)
+        buildType.set('Debug')
+        buildExecutable.set(false)
+        runExecutable.set(false)
+        consoleLog.set(true)
+        obfuscated.set(false)
+    }
+}
+
+def patchGeneratedWindowsScripts = {
+    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_debug.bat"))
+    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_release.bat"))
+    patchGeneratedCMake(file("$buildDir/dist/glfw/CMakeLists.txt"))
+}
+
+tasks.named('generateC').configure {
+    doLast {
+        syncNativeFreeTypeFiles()
+        patchGeneratedWindowsScripts()
+    }
+}
+
+gradle.projectsEvaluated {
+    tasks.matching { it.name == 'gdx_teavm_glfw_generate' }.configureEach {
+        doLast {
+            syncNativeFreeTypeFiles()
+            patchGeneratedWindowsScripts()
+        }
+    }
+}

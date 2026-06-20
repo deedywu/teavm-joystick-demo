@@ -8,7 +8,8 @@
 - Gradle Wrapper
 - libGDX 1.14.2
 - LWJGL3 桌面后端
-- TeaVM Web 后端
+- GLFW 桌面后端(powered by teavm)
+- Web 后端(powered by teavm)
 - FreeType 字体渲染
 
 ## 环境要求
@@ -24,7 +25,7 @@
 ### 运行桌面版
 
 ```powershell
-.\gradlew.bat lwjgl3:run
+.\gradlew.bat desktop-lwjgl3:run
 ```
 
 说明：
@@ -35,7 +36,7 @@
 ### 运行网页版
 
 ```powershell
-.\gradlew.bat teavm:run
+.\gradlew.bat web-teavm:run
 ```
 
 说明：
@@ -44,11 +45,40 @@
 - Web 启动入口：`com.libgdx.joystick.web.TeaVMLauncher`
 - 本地预览地址：`http://localhost:8089`
 
+### 运行 TeaVM GLFW 原生桌面版
+
+```powershell
+.\gradlew.bat desktop-glfw:gdx_teavm_glfw_build
+```
+
+说明：
+
+- 模块目录：`desktop-glfw`
+- 首次 clone 后如果 `desktop-glfw/native/thirdparty/freetype` 为空，先执行 `git submodule update --init --recursive`
+
+### `desktop-glfw` 模块说明
+
+`desktop-glfw` 不是普通的 JVM 桌面启动模块，而是一条 TeaVM Native GLFW 构建链路。
+
+它的主要职责是：
+
+- 把 `core` 里的游戏逻辑通过 TeaVM 生成为 C 代码
+- 把生成出的 C 代码、本地 FreeType bridge、以及 `freetype` 第三方源码一起交给 CMake/MSVC 编译
+- 产出可运行的原生桌面程序
+
+使用上建议注意这几点：
+
+- 不要直接把 `com.libgdx.joystick.glfw.GlfwLauncher` 当普通 Java `main()` 在 IDE 里运行
+- 推荐通过 `desktop-glfw:gdx_teavm_glfw_generate`、`desktop-glfw:gdx_teavm_glfw_build`、`desktop-glfw:gdx_teavm_glfw_run` 这些任务驱动
+- `desktop-glfw/native/thirdparty/freetype` 来自 Git submodule，本地缺失时先执行 `git submodule update --init --recursive`
+- 该模块当前主要面向 Windows + MSVC 工具链
+
 ## 项目结构
 
 - `core`：核心游戏逻辑
-- `lwjgl3`：桌面端启动模块
-- `teavm`：网页端构建与预览模块
+- `desktop-lwjgl3`：桌面端启动模块
+- `web-teavm`：网页端构建与预览模块
+- `desktop-glfw`：TeaVM GLFW 原生桌面模块
 - `assets`：图片、字体等资源文件
 
 ## 功能说明
@@ -59,6 +89,6 @@
 
 ```powershell
 .\gradlew.bat build
-.\gradlew.bat lwjgl3:run
-.\gradlew.bat teavm:run
+.\gradlew.bat desktop-lwjgl3:run
+.\gradlew.bat web-teavm:run
 ```

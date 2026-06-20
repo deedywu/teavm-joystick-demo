@@ -2,9 +2,10 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
         gradlePluginPortal()
     }
 }
 
 rootProject.name = 'teavm-joystick-demo'
-include 'core', 'lwjgl3', 'teavm'
+include 'core', 'desktop-lwjgl3', 'web-teavm', 'desktop-glfw'

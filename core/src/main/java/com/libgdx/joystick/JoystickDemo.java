@@ -118,13 +118,12 @@ public class JoystickDemo extends ApplicationAdapter {
 
     private BitmapFont createGuideFont() {
         FreeTypeFontGenerator generator = new FreeTypeFontGenerator(Gdx.files.internal(FONT_FILE));
-        FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
-        parameter.size = 26;
-        parameter.characters = GUIDE_TEXT + "方向轮盘点击按住后移动，用来查看指向变化，请";
-        parameter.minFilter = Texture.TextureFilter.Linear;
-        parameter.magFilter = Texture.TextureFilter.Linear;
-
         try {
+            FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+            parameter.size = 26;
+            parameter.characters = GUIDE_TEXT + "方向轮盘点击按住后移动，用来查看指向变化，请";
+            parameter.minFilter = Texture.TextureFilter.Linear;
+            parameter.magFilter = Texture.TextureFilter.Linear;
             return generator.generateFont(parameter);
         } finally {
             generator.dispose();
