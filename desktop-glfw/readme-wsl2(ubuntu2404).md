@@ -1,16 +1,18 @@
-# WSL2 Ubuntu 24.04 下配置 `desktop-glfw`
+# `desktop-glfw` Setup on WSL2 Ubuntu 24.04
 
-`desktop-glfw` 会先把 Java 代码通过 TeaVM 生成为 C，再交给 CMake 和系统编译器生成原生程序。
+**English** | [中文](<readme-wsl2(ubuntu2404).zh-CN.md>)
 
-这个模块不要直接在 IDE 里运行 [GlfwLauncher.java](src/main/java/com/libgdx/joystick/glfw/GlfwLauncher.java)。正确入口是 Gradle 任务：
+`desktop-glfw` first turns the Java code into C with TeaVM, then builds a native executable with CMake and the system compiler.
+
+Do not run [GlfwLauncher.java](src/main/java/com/libgdx/joystick/glfw/GlfwLauncher.java) directly from the IDE. Use these Gradle tasks instead:
 
 - `:desktop-glfw:gdx_teavm_glfw_generate`
 - `:desktop-glfw:gdx_teavm_glfw_build`
 - `:desktop-glfw:gdx_teavm_glfw_run`
 
-下面默认你已经在 WSL2 Ubuntu 24.04 终端里，并且 `java` / `javac` 已经可用。
+The steps below assume you are already inside a WSL2 Ubuntu 24.04 terminal and that `java` and `javac` are available.
 
-## 1. 安装构建依赖
+## 1. Install build dependencies
 
 ```bash
 sudo apt update
@@ -24,16 +26,16 @@ sudo apt install -y \
   mesa-utils
 ```
 
-这里最关键的几项：
+The most important packages here are:
 
-- `build-essential`：`gcc`、`g++`、`make`
-- `cmake`：原生构建
-- `pkg-config`：查找系统库
-- `libglfw3-dev`：GLFW 头文件和 CMake 配置
-- `libglew-dev`：GLEW 头文件和库
-- `libgl1-mesa-dev` / `libglu1-mesa-dev`：OpenGL 开发文件
+- `build-essential`: `gcc`, `g++`, and `make`
+- `cmake`: native build system
+- `pkg-config`: library discovery
+- `libglfw3-dev`: GLFW headers and CMake config
+- `libglew-dev`: GLEW headers and library
+- `libgl1-mesa-dev` / `libglu1-mesa-dev`: OpenGL development files
 
-装好后确认：
+Verify the tools after installation:
 
 ```bash
 cmake --version
@@ -42,32 +44,32 @@ pkg-config --modversion glfw3
 pkg-config --modversion glew
 ```
 
-## 2. 初始化 FreeType submodule
+## 2. Initialize the FreeType submodule
 
-首次 clone 后一定要执行：
+Run this after cloning:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-执行完后，下面这个目录里应该有内容：
+After that, this directory should contain files:
 
 ```text
 desktop-glfw/native/thirdparty/freetype
 ```
 
-如果这里是空的，CMake 会在 `add_subdirectory(...)` 阶段报错。
+If it is empty, CMake will fail in the `add_subdirectory(...)` step.
 
-## 3. 给 `gradlew` 加执行权限
+## 3. Make `gradlew` executable
 
 ```bash
 chmod +x ./gradlew
 ```
 
-## 4. 如果要直接弹窗运行，先确认 WSLg 可用
+## 4. Check WSLg if you want to open a native window
 
-如果你只关心能不能编译，这一步可以跳过。  
-如果你要在 WSL2 里直接打开窗口，先检查图形环境：
+If you only care about compilation, you can skip this section.  
+If you want to run the native window inside WSL2, check the graphics environment first:
 
 ```bash
 echo "$DISPLAY"
@@ -75,14 +77,14 @@ echo "$WAYLAND_DISPLAY"
 glxinfo -B
 ```
 
-通常满足下面两点就可以继续：
+Usually you want both of these to be true:
 
-- `DISPLAY` 或 `WAYLAND_DISPLAY` 不是空的
-- `glxinfo -B` 能正常输出 OpenGL 信息
+- `DISPLAY` or `WAYLAND_DISPLAY` is not empty
+- `glxinfo -B` prints valid OpenGL information
 
-## 5. 运行构建任务
+## 5. Run the build tasks
 
-在项目根目录执行：
+Run these commands from the project root:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_generate
@@ -90,39 +92,39 @@ glxinfo -B
 ./gradlew :desktop-glfw:gdx_teavm_glfw_run
 ```
 
-说明：
+What they do:
 
-- `gdx_teavm_glfw_generate`：生成 TeaVM C 代码并整理资源
-- `gdx_teavm_glfw_build`：调用 CMake 编译原生程序
-- `gdx_teavm_glfw_run`：生成、编译并运行程序
+- `gdx_teavm_glfw_generate`: generates TeaVM C code and copies resources
+- `gdx_teavm_glfw_build`: builds the native executable with CMake
+- `gdx_teavm_glfw_run`: generates, builds, and runs the executable
 
-如果只想先确认能否编译成功：
+If you only want to verify the native build:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-如果要从干净状态重新验证：
+If you want to retry from a clean state:
 
 ```bash
 ./gradlew clean :desktop-glfw:gdx_teavm_glfw_run
 ```
 
-## 6. 生成结果在哪
+## 6. Where the generated files go
 
-重点目录：
+Important paths:
 
 - `desktop-glfw/build/dist/glfw`
 - `desktop-glfw/build/dist/glfw/CMakeLists.txt`
 - `desktop-glfw/build/dist/glfw/app_debug.sh`
 - `desktop-glfw/build/dist/glfw/c/release/app_debug`
 
-`build/dist/glfw` 是生成目录，不建议手工长期改动。真正需要维护的源码在：
+`build/dist/glfw` is generated output. Do not treat it as long-term source code. The files you should actually maintain are under:
 
 - `desktop-glfw/native/src`
 - `desktop-glfw/native/thirdparty`
 
-## 常见问题
+## Common Problems
 
 ### 1. `./gradlew: Permission denied`
 
@@ -130,27 +132,27 @@ glxinfo -B
 chmod +x ./gradlew
 ```
 
-### 2. 找不到 `glfw3Config.cmake`
+### 2. `glfw3Config.cmake` cannot be found
 
 ```bash
 sudo apt install -y libglfw3-dev
 ```
 
-### 3. 找不到 GLEW
+### 3. GLEW cannot be found
 
 ```bash
 sudo apt install -y libglew-dev
 ```
 
-### 4. `thirdparty/freetype` 不存在
+### 4. `thirdparty/freetype` does not exist
 
 ```bash
 git submodule update --init --recursive
 ```
 
-### 5. 编译成功但窗口打不开
+### 5. The build succeeds but the window does not open
 
-优先检查 WSLg：
+Check WSLg first:
 
 ```bash
 echo "$DISPLAY"
@@ -158,13 +160,13 @@ echo "$WAYLAND_DISPLAY"
 glxinfo -B
 ```
 
-如果只是先验证构建链路，可以先停在：
+If you only want to verify the build pipeline, it is completely fine to stop at:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-## 补充
+## Note
 
-日常调游戏逻辑更适合用 `:desktop-lwjgl3`。  
-`desktop-glfw` 更适合验证 TeaVM Native GLFW 这条原生构建链路。
+For everyday gameplay debugging, `:desktop-lwjgl3` is usually the better option.  
+`desktop-glfw` is better when you want to verify the TeaVM Native GLFW pipeline itself.

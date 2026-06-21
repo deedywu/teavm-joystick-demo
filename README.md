@@ -1,120 +1,121 @@
 # libGDX Joystick Demo
 
-这是一个基于 `libGDX` 的方向指示器演示项目，支持桌面端运行，也支持通过 `TeaVM` 构建为网页版本。
+**English** | [中文](README.zh-CN.md)
 
-## 技术栈
+This repository contains a small joystick indicator demo built with `libGDX`. It can run as a regular desktop application and can also be built for the web and for TeaVM Native GLFW targets.
+
+## Tech Stack
 
 - Java 17+
 - Gradle Wrapper
 - libGDX 1.14.2
-- LWJGL3 桌面后端
-- TeaVM Native GLFW 原生桌面后端
-- Web 后端(powered by teavm)
-- FreeType 字体渲染
+- LWJGL3 desktop backend
+- TeaVM Native GLFW desktop backend
+- TeaVM web backend
+- FreeType font rendering
 
-## 环境要求
+## Requirements
 
-- JDK 17 或更高版本
+- JDK 17 or newer
 
-项目自带 `gradlew` / `gradlew.bat`，开箱即用，不需要额外安装 Gradle。
+The project already includes `gradlew` and `gradlew.bat`, so you do not need a separate Gradle installation.
 
-## 快速开始
+## Quick Start
 
-在项目根目录执行命令即可。
+Run commands from the project root.
 
-### 运行桌面版
+### Run the desktop version
 
 ```powershell
 .\gradlew.bat desktop-lwjgl3:run
 ```
 
-说明：
+Notes:
 
-- 启动入口：`com.libgdx.joystick.lwjgl3.Lwjgl3Launcher`
-- 启动后会打开桌面窗口，默认大小为 `960 x 640`
+- Launcher class: `com.libgdx.joystick.lwjgl3.Lwjgl3Launcher`
+- The desktop window opens with a default size of `960 x 640`
 
-### 运行网页版
+### Run the web version
 
 ```powershell
 .\gradlew.bat web-teavm:run
 ```
 
-说明：
+Notes:
 
-- 构建入口：`com.libgdx.joystick.web.TeaVMBuilder`
-- Web 启动入口：`com.libgdx.joystick.web.TeaVMLauncher`
-- 本地预览地址：`http://localhost:8089`
+- Build entry: `com.libgdx.joystick.web.TeaVMBuilder`
+- Web launcher: `com.libgdx.joystick.web.TeaVMLauncher`
+- Local preview URL: `http://localhost:8089`
 
-### 运行 TeaVM GLFW 原生桌面版
+### Run the TeaVM Native GLFW desktop version
 
-这是原生构建链路，不是普通的 JVM 启动方式。
+This is a native build pipeline, not a regular JVM launch path.
 
-常用任务：
+Common tasks:
 
 - `:desktop-glfw:gdx_teavm_glfw_generate`
 - `:desktop-glfw:gdx_teavm_glfw_build`
 - `:desktop-glfw:gdx_teavm_glfw_run`
 
-Windows 11 + MSVC：
+Windows 11 + MSVC:
 
 ```powershell
 .\gradlew.bat :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-WSL2 Ubuntu 24.04 / Linux：
+WSL2 Ubuntu 24.04 / Linux:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-macOS arm64：
+macOS arm64:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-说明：
+Notes:
 
-- 模块目录：`desktop-glfw`
-- 依赖 `desktop-glfw/native/thirdparty/freetype` 这个 Git submodule
-- 如果 `desktop-glfw/native/thirdparty/freetype` 为空，先执行 `git submodule update --init --recursive`
-- 不要直接在 IDE 里运行 `com.libgdx.joystick.glfw.GlfwLauncher`
-- 日常调试游戏逻辑更适合 `:desktop-lwjgl3`
-- Windows 11 + MSVC 环境说明见 [desktop-glfw/readme-win11(msvc).md](desktop-glfw/readme-win11(msvc).md)
-- WSL2 Ubuntu 24.04 环境说明见 [desktop-glfw/readme-wsl2(ubuntu2404).md](desktop-glfw/readme-wsl2(ubuntu2404).md)
-- macOS arm64 环境说明见 [desktop-glfw/readme-mac(arm64).md](desktop-glfw/readme-mac(arm64).md)
+- Module directory: `desktop-glfw`
+- This module depends on the `desktop-glfw/native/thirdparty/freetype` Git submodule
+- If `desktop-glfw/native/thirdparty/freetype` is empty, run `git submodule update --init --recursive`
+- Do not run `com.libgdx.joystick.glfw.GlfwLauncher` directly from the IDE
+- For day-to-day gameplay debugging, `:desktop-lwjgl3` is usually the better choice
+- Windows setup guide: [readme-win11(msvc).md](<desktop-glfw/readme-win11(msvc).md>)
+- WSL2 Ubuntu 24.04 setup guide: [readme-wsl2(ubuntu2404).md](<desktop-glfw/readme-wsl2(ubuntu2404).md>)
+- macOS arm64 setup guide: [readme-mac(arm64).md](<desktop-glfw/readme-mac(arm64).md>)
 
-### `desktop-glfw` 模块说明
+### About the `desktop-glfw` module
 
-`desktop-glfw` 不是普通的 JVM 桌面启动模块，而是一条 TeaVM Native GLFW 原生构建链路。
+`desktop-glfw` is not a regular JVM desktop launcher. It is a TeaVM Native GLFW build pipeline.
 
-它的主要职责是：
+Its main responsibilities are:
 
-- 把 `core` 里的游戏逻辑通过 TeaVM 生成为 C 代码
-- 把生成出的 C 代码、本地 FreeType bridge、FreeType 源码 submodule、以及平台相关的原生依赖交给 CMake 编译
-- 产出可运行的原生桌面程序
+- Turn the game logic in `core` into C code with TeaVM
+- Feed the generated C code, the local FreeType bridge, the FreeType source submodule, and platform-native dependencies into CMake
+- Produce a runnable native desktop executable
 
-使用上建议注意这几点：
+Recommended usage:
 
-- 不要直接把 `com.libgdx.joystick.glfw.GlfwLauncher` 当普通 Java `main()` 运行
-- 推荐通过 `desktop-glfw:gdx_teavm_glfw_generate`、`desktop-glfw:gdx_teavm_glfw_build`、`desktop-glfw:gdx_teavm_glfw_run` 这些任务驱动
-- `desktop-glfw/native/thirdparty/freetype` 来自 Git submodule，本地缺失时先执行 `git submodule update --init --recursive`
-- 目前已整理好 Windows 11 + MSVC、WSL2 Ubuntu 24.04 和 macOS arm64 三套文档
-- 如果只是调游戏逻辑，优先使用 `desktop-lwjgl3`
+- Do not treat `com.libgdx.joystick.glfw.GlfwLauncher` as a normal Java `main()`
+- Drive this module through `desktop-glfw:gdx_teavm_glfw_generate`, `desktop-glfw:gdx_teavm_glfw_build`, and `desktop-glfw:gdx_teavm_glfw_run`
+- Keep `desktop-glfw/native/thirdparty/freetype` initialized with `git submodule update --init --recursive`
+- Platform-specific setup guides are available for Windows 11 + MSVC, WSL2 Ubuntu 24.04, and macOS arm64
 
-## 项目结构
+## Project Structure
 
-- `core`：核心游戏逻辑
-- `desktop-lwjgl3`：桌面端启动模块
-- `web-teavm`：网页端构建与预览模块
-- `desktop-glfw`：TeaVM GLFW 原生桌面模块
-- `assets`：图片、字体等资源文件
+- `core`: core game logic
+- `desktop-lwjgl3`: regular desktop launcher
+- `web-teavm`: web build and preview module
+- `desktop-glfw`: TeaVM Native GLFW desktop module
+- `assets`: textures, fonts, and other assets
 
-## 功能说明
+## What It Does
 
-程序会在屏幕中心显示一个方向底座，点击或按住拖动后，箭头会根据拖动方向实时旋转，用于演示方向输入效果。
+The demo draws a joystick base at the center of the screen. When you click or drag, the arrow rotates in real time based on the drag direction.
 
-## 常用命令
+## Common Commands
 
 ```powershell
 .\gradlew.bat build

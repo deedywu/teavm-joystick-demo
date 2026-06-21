@@ -1,37 +1,39 @@
-# macOS arm64 下配置 `desktop-glfw`
+# `desktop-glfw` Setup on macOS arm64
 
-`desktop-glfw` 会先把 Java 代码通过 TeaVM 生成为 C，再交给 CMake 和系统图形库生成原生程序。
+**English** | [中文](<readme-mac(arm64).zh-CN.md>)
 
-这个模块不要直接在 IDE 里运行 [GlfwLauncher.java](src/main/java/com/libgdx/joystick/glfw/GlfwLauncher.java)。正确入口是 Gradle 任务：
+`desktop-glfw` first turns the Java code into C with TeaVM, then builds a native executable with CMake and the platform graphics libraries.
+
+Do not run [GlfwLauncher.java](src/main/java/com/libgdx/joystick/glfw/GlfwLauncher.java) directly from the IDE. Use these Gradle tasks instead:
 
 - `:desktop-glfw:gdx_teavm_glfw_generate`
 - `:desktop-glfw:gdx_teavm_glfw_build`
 - `:desktop-glfw:gdx_teavm_glfw_run`
 
-下面默认你已经在 Apple Silicon 机器上，并且 `brew`、`java`、`javac` 都已经可用。
+The steps below assume you are already on Apple Silicon and that `brew`, `java`, and `javac` are available.
 
-## 1. 安装 Xcode Command Line Tools
+## 1. Install Xcode Command Line Tools
 
-先装编译工具链：
+Install the compiler toolchain first:
 
 ```bash
 xcode-select --install
 ```
 
-装完后确认：
+Verify it after installation:
 
 ```bash
 clang --version
 xcode-select -p
 ```
 
-## 2. 安装构建依赖
+## 2. Install build dependencies
 
 ```bash
 brew install cmake pkg-config glfw glew
 ```
 
-装好后确认：
+Verify them after installation:
 
 ```bash
 cmake --version
@@ -41,33 +43,33 @@ find /opt/homebrew -path '*/glfw3Config.cmake' | head
 find /opt/homebrew -path '*/glew-config.cmake' | head
 ```
 
-这几个包缺一项，后面的 CMake 阶段都可能失败。
+If any of these packages are missing, the CMake step can fail.
 
-## 3. 初始化 FreeType submodule
+## 3. Initialize the FreeType submodule
 
-首次 clone 后执行：
+Run this after cloning:
 
 ```bash
 git submodule update --init --recursive
 ```
 
-执行完后，下面这个目录里应该有内容：
+After that, this directory should contain files:
 
 ```text
 desktop-glfw/native/thirdparty/freetype
 ```
 
-如果这里是空目录，CMake 会在 `add_subdirectory(...)` 阶段报错。
+If it is empty, CMake will fail in the `add_subdirectory(...)` step.
 
-## 4. 给 `gradlew` 加执行权限
+## 4. Make `gradlew` executable
 
 ```bash
 chmod +x ./gradlew
 ```
 
-## 5. 运行构建任务
+## 5. Run the build tasks
 
-在项目根目录执行：
+Run these commands from the project root:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_generate
@@ -75,39 +77,39 @@ chmod +x ./gradlew
 ./gradlew :desktop-glfw:gdx_teavm_glfw_run
 ```
 
-说明：
+What they do:
 
-- `gdx_teavm_glfw_generate`：生成 TeaVM C 代码并整理资源
-- `gdx_teavm_glfw_build`：调用 CMake 编译原生程序
-- `gdx_teavm_glfw_run`：生成、编译并运行程序
+- `gdx_teavm_glfw_generate`: generates TeaVM C code and copies resources
+- `gdx_teavm_glfw_build`: builds the native executable with CMake
+- `gdx_teavm_glfw_run`: generates, builds, and runs the executable
 
-如果你只想先确认编译是否通过：
+If you only want to verify the native build first:
 
 ```bash
 ./gradlew :desktop-glfw:gdx_teavm_glfw_build
 ```
 
-如果想从干净状态完整验证：
+If you want to retry from a clean state:
 
 ```bash
 ./gradlew clean :desktop-glfw:gdx_teavm_glfw_run
 ```
 
-## 6. 生成结果在哪
+## 6. Where the generated files go
 
-重点目录：
+Important paths:
 
 - `desktop-glfw/build/dist/glfw`
 - `desktop-glfw/build/dist/glfw/CMakeLists.txt`
 - `desktop-glfw/build/dist/glfw/app_debug.sh`
 - `desktop-glfw/build/dist/glfw/c/release/app_debug`
 
-`build/dist/glfw` 是生成目录，不建议长期手工改动。真正需要维护的源码在：
+`build/dist/glfw` is generated output. Do not treat it as long-term source code. The files you should actually maintain are under:
 
 - `desktop-glfw/native/src`
 - `desktop-glfw/native/thirdparty`
 
-## 常见问题
+## Common Problems
 
 ### 1. `./gradlew: permission denied`
 
@@ -115,27 +117,27 @@ chmod +x ./gradlew
 chmod +x ./gradlew
 ```
 
-### 2. 找不到 `glfw3Config.cmake`
+### 2. `glfw3Config.cmake` cannot be found
 
 ```bash
 brew install glfw
 find /opt/homebrew -path '*/glfw3Config.cmake' | head
 ```
 
-### 3. 找不到 GLEW
+### 3. GLEW cannot be found
 
 ```bash
 brew install glew pkg-config
 find /opt/homebrew -path '*/glew-config.cmake' | head
 ```
 
-### 4. `thirdparty/freetype` 不存在
+### 4. `thirdparty/freetype` does not exist
 
 ```bash
 git submodule update --init --recursive
 ```
 
-## 补充
+## Note
 
-平时调游戏逻辑更适合用 `:desktop-lwjgl3`。  
-`desktop-glfw` 更适合验证 TeaVM Native GLFW 这条原生构建链路。
+For everyday gameplay debugging, `:desktop-lwjgl3` is usually the better option.  
+`desktop-glfw` is better when you want to verify the TeaVM Native GLFW pipeline itself.
