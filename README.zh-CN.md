@@ -78,8 +78,11 @@ macOS arm64：
 说明：
 
 - 模块目录：`desktop-glfw`
-- 依赖 `desktop-glfw/native/thirdparty/freetype` 这个 Git submodule
-- 如果 `desktop-glfw/native/thirdparty/freetype` 为空，先执行 `git submodule update --init --recursive`
+- FreeType 源码会在 GLFW 原生任务执行前由 Gradle 自动准备
+- 如需提前拉取，可单独执行 `:desktop-glfw:freetype_sync_source`
+- 下载缓存目录：`.gradle/desktop-glfw/freetype`
+- 同步到项目内的源码目录：`desktop-glfw/native/thirdparty/freetype`
+- 如需清理同步后的项目内源码，可执行 `:desktop-glfw:freetype_clean_source`
 - 不要直接在 IDE 里运行 `com.libgdx.joystick.glfw.GlfwLauncher`
 - 日常调试游戏逻辑更适合 `:desktop-lwjgl3`
 - Windows 11 + MSVC 环境说明见 [readme-win11(msvc).zh-CN.md](<desktop-glfw/readme-win11(msvc).zh-CN.md>)
@@ -93,14 +96,15 @@ macOS arm64：
 它的主要职责是：
 
 - 把 `core` 里的游戏逻辑通过 TeaVM 生成为 C 代码
-- 把生成出的 C 代码、本地 FreeType bridge、FreeType 源码 submodule、以及平台相关原生依赖交给 CMake 编译
+- 把生成出的 C 代码、本地 FreeType bridge、由 Gradle 准备好的最新 FreeType 源码，以及平台相关原生依赖交给 CMake 编译
 - 产出可运行的原生桌面程序
 
 使用上建议注意这几点：
 
 - 不要直接把 `com.libgdx.joystick.glfw.GlfwLauncher` 当普通 Java `main()` 运行
 - 推荐通过 `desktop-glfw:gdx_teavm_glfw_generate`、`desktop-glfw:gdx_teavm_glfw_build`、`desktop-glfw:gdx_teavm_glfw_run` 这些任务驱动
-- `desktop-glfw/native/thirdparty/freetype` 来自 Git submodule，本地缺失时先执行 `git submodule update --init --recursive`
+- 需要预拉取或清理 FreeType 缓存时，可使用 `desktop-glfw:freetype_sync_source` 和 `desktop-glfw:freetype_clean_cache`
+- `desktop-glfw:freetype_sync_source` 执行后，也会把准备好的源码同步到 `desktop-glfw/native/thirdparty/freetype`
 - 目前已整理好 Windows 11 + MSVC、WSL2 Ubuntu 24.04 和 macOS arm64 三套平台文档
 
 ## 项目结构

@@ -1,3 +1,0 @@
-[submodule "desktop-glfw/native/thirdparty/freetype"]
-	path = desktop-glfw/native/thirdparty/freetype
-	url = https://github.com/freetype/freetype.git

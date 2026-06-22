@@ -46,21 +46,33 @@ Test-Path "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Com
 
 If Visual Studio is installed somewhere else, that is still fine. The Gradle script checks the common `Program Files` roots automatically.
 
-## 3. Initialize the FreeType submodule
+## 3. Prepare the FreeType source cache
 
-`desktop-glfw` depends on a FreeType submodule. Run this after cloning:
+The GLFW Gradle tasks automatically prepare the latest FreeType source tree on first use.
+If you want to prefetch it explicitly, run:
 
 ```powershell
-git submodule update --init --recursive
+.\gradlew.bat :desktop-glfw:freetype_sync_source
 ```
 
-After that, this directory should contain files:
+By default the cached copy is stored under:
+
+```text
+.gradle\desktop-glfw\freetype
+```
+
+After the task succeeds, the source is also synced into:
 
 ```text
 desktop-glfw\native\thirdparty\freetype
 ```
 
-If the directory is empty, the CMake step will fail.
+To force a fresh download instead, add `-PglfwFreetypeForceDownload=true`.
+If you want to remove the synced project copy, run:
+
+```powershell
+.\gradlew.bat :desktop-glfw:freetype_clean_source
+```
 
 ## 4. Run the build tasks
 
@@ -102,18 +114,25 @@ Important paths:
 `build\dist\glfw` is generated output. Do not treat it as long-term source code. The files you should actually maintain are under:
 
 - `desktop-glfw\native\src`
-- `desktop-glfw\native\thirdparty`
+- `.gradle\desktop-glfw\freetype` for the cached downloaded FreeType source
+- `desktop-glfw\native\thirdparty` only if you intentionally keep a local FreeType checkout
 
 ## Common Problems
 
-### 1. The submodule was not initialized
+### 1. The FreeType source cache could not be prepared
 
-Typical symptom: CMake says `thirdparty/freetype` is missing.
+Typical symptom: the first GLFW build fails before CMake starts compiling.
 
 Fix:
 
 ```powershell
-git submodule update --init --recursive
+.\gradlew.bat :desktop-glfw:freetype_sync_source --info
+```
+
+If you want to discard the cached copy and download the latest revision again:
+
+```powershell
+.\gradlew.bat :desktop-glfw:freetype_clean_cache :desktop-glfw:freetype_sync_source -PglfwFreetypeForceDownload=true
 ```
 
 ### 2. `cmake` or `MSBuild` cannot be found

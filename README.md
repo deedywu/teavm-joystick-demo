@@ -78,8 +78,11 @@ macOS arm64:
 Notes:
 
 - Module directory: `desktop-glfw`
-- This module depends on the `desktop-glfw/native/thirdparty/freetype` Git submodule
-- If `desktop-glfw/native/thirdparty/freetype` is empty, run `git submodule update --init --recursive`
+- FreeType source is prepared automatically before the GLFW native tasks run
+- Optional prefetch task: `:desktop-glfw:freetype_sync_source`
+- Cached download location: `.gradle/desktop-glfw/freetype`
+- Synced project source location: `desktop-glfw/native/thirdparty/freetype`
+- Optional cleanup for the synced project source: `:desktop-glfw:freetype_clean_source`
 - Do not run `com.libgdx.joystick.glfw.GlfwLauncher` directly from the IDE
 - For day-to-day gameplay debugging, `:desktop-lwjgl3` is usually the better choice
 - Windows setup guide: [readme-win11(msvc).md](<desktop-glfw/readme-win11(msvc).md>)
@@ -93,14 +96,15 @@ Notes:
 Its main responsibilities are:
 
 - Turn the game logic in `core` into C code with TeaVM
-- Feed the generated C code, the local FreeType bridge, the FreeType source submodule, and platform-native dependencies into CMake
+- Feed the generated C code, the local FreeType bridge, the latest FreeType source prepared by Gradle, and platform-native dependencies into CMake
 - Produce a runnable native desktop executable
 
 Recommended usage:
 
 - Do not treat `com.libgdx.joystick.glfw.GlfwLauncher` as a normal Java `main()`
 - Drive this module through `desktop-glfw:gdx_teavm_glfw_generate`, `desktop-glfw:gdx_teavm_glfw_build`, and `desktop-glfw:gdx_teavm_glfw_run`
-- Keep `desktop-glfw/native/thirdparty/freetype` initialized with `git submodule update --init --recursive`
+- Prefetch or refresh the FreeType cache with `desktop-glfw:freetype_sync_source` and `desktop-glfw:freetype_clean_cache` when needed
+- `desktop-glfw:freetype_sync_source` also syncs the prepared source into `desktop-glfw/native/thirdparty/freetype`
 - Platform-specific setup guides are available for Windows 11 + MSVC, WSL2 Ubuntu 24.04, and macOS arm64
 
 ## Project Structure

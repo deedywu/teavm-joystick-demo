@@ -49,4 +49,3 @@ web-teavm/src/main/resources/webapp/index.html
 
 ### desktop glfw ###
 /desktop-glfw/native/thirdparty/*
-!/desktop-glfw/native/thirdparty/freetype/

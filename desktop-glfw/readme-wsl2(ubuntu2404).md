@@ -44,21 +44,33 @@ pkg-config --modversion glfw3
 pkg-config --modversion glew
 ```
 
-## 2. Initialize the FreeType submodule
+## 2. Prepare the FreeType source cache
 
-Run this after cloning:
+The GLFW Gradle tasks automatically prepare the latest FreeType source tree on first use.
+If you want to prefetch it explicitly, run:
 
 ```bash
-git submodule update --init --recursive
+./gradlew :desktop-glfw:freetype_sync_source
 ```
 
-After that, this directory should contain files:
+By default the cached copy is stored under:
+
+```text
+.gradle/desktop-glfw/freetype
+```
+
+After the task succeeds, the source is also synced into:
 
 ```text
 desktop-glfw/native/thirdparty/freetype
 ```
 
-If it is empty, CMake will fail in the `add_subdirectory(...)` step.
+To force a fresh download instead, add `-PglfwFreetypeForceDownload=true`.
+If you want to remove the synced project copy, run:
+
+```bash
+./gradlew :desktop-glfw:freetype_clean_source
+```
 
 ## 3. Make `gradlew` executable
 
@@ -122,7 +134,8 @@ Important paths:
 `build/dist/glfw` is generated output. Do not treat it as long-term source code. The files you should actually maintain are under:
 
 - `desktop-glfw/native/src`
-- `desktop-glfw/native/thirdparty`
+- `.gradle/desktop-glfw/freetype` for the cached downloaded FreeType source
+- `desktop-glfw/native/thirdparty` only if you intentionally keep a local FreeType checkout
 
 ## Common Problems
 
@@ -144,10 +157,16 @@ sudo apt install -y libglfw3-dev
 sudo apt install -y libglew-dev
 ```
 
-### 4. `thirdparty/freetype` does not exist
+### 4. The FreeType source cache could not be prepared
 
 ```bash
-git submodule update --init --recursive
+./gradlew :desktop-glfw:freetype_sync_source --info
+```
+
+If you want to discard the cached copy and download the latest revision again:
+
+```bash
+./gradlew :desktop-glfw:freetype_clean_cache :desktop-glfw:freetype_sync_source -PglfwFreetypeForceDownload=true
 ```
 
 ### 5. The build succeeds but the window does not open

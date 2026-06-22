@@ -46,21 +46,33 @@ Test-Path "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\Com
 
 如果你的 Visual Studio 不是装在默认目录，也没关系，`desktop-glfw/build.gradle` 会在常见 `Program Files` 目录里自动查找。
 
-## 3. 初始化 FreeType submodule
+## 3. 准备 FreeType 源码缓存
 
-`desktop-glfw` 依赖一个 FreeType submodule。首次 clone 后一定要执行：
+GLFW 相关 Gradle 任务会在首次使用时自动准备最新的 FreeType 源码。
+如果你想提前拉取，可以单独执行：
 
 ```powershell
-git submodule update --init --recursive
+.\gradlew.bat :desktop-glfw:freetype_sync_source
 ```
 
-执行完以后，这个目录里应该有内容：
+默认缓存目录在：
+
+```text
+.gradle\desktop-glfw\freetype
+```
+
+任务成功后，源码也会同步到：
 
 ```text
 desktop-glfw\native\thirdparty\freetype
 ```
 
-如果这里是空目录，后面的 CMake 构建会失败。
+如果想强制重新下载，额外加上 `-PglfwFreetypeForceDownload=true`。
+如果想把同步到项目内的源码清掉，可以执行：
+
+```powershell
+.\gradlew.bat :desktop-glfw:freetype_clean_source
+```
 
 ## 4. 运行构建任务
 
@@ -102,18 +114,25 @@ desktop-glfw\native\thirdparty\freetype
 `build\dist\glfw` 是生成目录，不建议手工长期修改。真正需要维护的源码在：
 
 - `desktop-glfw\native\src`
-- `desktop-glfw\native\thirdparty`
+- `.gradle\desktop-glfw\freetype`：Gradle 下载缓存的 FreeType 源码
+- `desktop-glfw\native\thirdparty`：仅在你刻意保留本地 FreeType checkout 时才需要关注
 
 ## 常见问题
 
-### 1. `git submodule` 没执行
+### 1. FreeType 源码缓存准备失败
 
-现象通常是 CMake 报 `thirdparty/freetype` 不存在。
+现象通常是第一次执行 GLFW 构建时，在进入 CMake 编译前就失败了。
 
 处理方法：
 
 ```powershell
-git submodule update --init --recursive
+.\gradlew.bat :desktop-glfw:freetype_sync_source --info
+```
+
+如果想丢弃缓存并重新下载最新版本：
+
+```powershell
+.\gradlew.bat :desktop-glfw:freetype_clean_cache :desktop-glfw:freetype_sync_source -PglfwFreetypeForceDownload=true
 ```
 
 ### 2. `cmake` 或 `MSBuild` 找不到
