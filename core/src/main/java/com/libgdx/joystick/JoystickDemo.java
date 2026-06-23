@@ -25,7 +25,7 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport;
 import java.util.Locale;
 
 public class JoystickDemo extends ApplicationAdapter {
-    private static final String APP_TITLE = "方向指示器演示";
+    private static final String APP_TITLE = "Joystick Indicator Demo";
     private static final float ARROW_ANGLE_OFFSET = 45f;
     private static final float MIN_VALID_DISTANCE = 4f;
     private static final float CONTROLLER_DEADZONE = 0.25f;
@@ -33,14 +33,15 @@ public class JoystickDemo extends ApplicationAdapter {
     private static final float DPAD_VALUE = 1f;
     private static final long TRANSIENT_EVENT_DURATION_MS = 320L;
     private static final String FONT_FILE = "ZhuoTeQingYaTi-2.otf";
-    private static final String GUIDE_TEXT = "请点击或按住后移动，或连接 controller / 手柄后拨动左摇杆或方向键";
-    private static final String IO_STATUS_IDLE = "IO 输入：未激活";
-    private static final String TOUCH_STATUS_ACTIVE = "IO 输入：鼠标/触摸";
-    private static final String KEYBOARD_STATUS_ACTIVE = "IO 输入：键盘";
-    private static final String CONTROLLER_STATUS_ACTIVE = "IO 输入：手柄";
-    private static final String EVENT_TEXT_IDLE = "当前事件：无";
-    private static final String CONTROLLER_NAME_DISCONNECTED = "Controller：未连接";
-    private static final String CONTROLLER_NAME_PREFIX = "Controller：";
+    private static final String GUIDE_TEXT = "Click or drag to move, or connect a controller and use the left stick or D-pad";
+    private static final String HELLO_TEXT = "你好";
+    private static final String IO_STATUS_IDLE = "Input: idle";
+    private static final String TOUCH_STATUS_ACTIVE = "Input: mouse/touch";
+    private static final String KEYBOARD_STATUS_ACTIVE = "Input: keyboard";
+    private static final String CONTROLLER_STATUS_ACTIVE = "Input: controller";
+    private static final String EVENT_TEXT_IDLE = "Event: none";
+    private static final String CONTROLLER_NAME_DISCONNECTED = "Controller: disconnected";
+    private static final String CONTROLLER_NAME_PREFIX = "Controller: ";
 
     private final OrthographicCamera camera = new OrthographicCamera();
     private final ScreenViewport viewport = new ScreenViewport(camera);
@@ -56,6 +57,7 @@ public class JoystickDemo extends ApplicationAdapter {
     private Table layoutTable;
     private Skin skin;
     private Label guideLabel;
+    private Label helloLabel;
     private BitmapFont guideFont;
     private float centerWidth;
     private float centerHeight;
@@ -153,6 +155,10 @@ public class JoystickDemo extends ApplicationAdapter {
         guideLabel.setWrap(true);
         guideLabel.setAlignment(Align.center);
 
+        helloLabel = new Label(HELLO_TEXT, skin, "guide");
+        helloLabel.setWrap(true);
+        helloLabel.setAlignment(Align.center);
+
         statusLabel = new Label("", skin, "guide");
         statusLabel.setWrap(true);
         statusLabel.setAlignment(Align.center);
@@ -165,6 +171,8 @@ public class JoystickDemo extends ApplicationAdapter {
         layoutTable.setFillParent(true);
         layoutTable.defaults().padLeft(48f).padRight(48f);
         layoutTable.add(guideLabel).growX().top().padTop(24f);
+        layoutTable.row();
+        layoutTable.add(helloLabel).growX().top().padTop(8f);
         layoutTable.row();
         layoutTable.add().expandY().fillY();
         layoutTable.row();
@@ -190,7 +198,8 @@ public class JoystickDemo extends ApplicationAdapter {
                 + EVENT_TEXT_IDLE
                 + CONTROLLER_NAME_DISCONNECTED
                 + CONTROLLER_NAME_PREFIX
-                + "方向轮盘点击按住后移动用来查看指向变化请连接手柄左摇杆方向键拖拽中未激活已连接当前事件鼠标触摸键盘手柄角度按下抬起滚轮移动按钮";
+                + HELLO_TEXT
+                + "connected left stick d-pad input idle event mouse touch keyboard controller angle down up wheel move button drag disconnected";
             parameter.minFilter = Texture.TextureFilter.Linear;
             parameter.magFilter = Texture.TextureFilter.Linear;
             return generator.generateFont(parameter);
@@ -214,7 +223,7 @@ public class JoystickDemo extends ApplicationAdapter {
                 }
 
                 activePointer = pointer;
-                setPointerEvent("当前事件：鼠标/触摸按下 button=" + mouseButtonName(button)
+                setPointerEvent("Event: mouse/touch down button=" + mouseButtonName(button)
                     + " x=" + screenX + " y=" + screenY);
                 refreshTouchArrow(screenX, screenY);
                 return true;
@@ -227,7 +236,7 @@ public class JoystickDemo extends ApplicationAdapter {
                 }
 
                 refreshTouchArrow(screenX, screenY);
-                setPointerEvent("当前事件：鼠标/触摸拖拽 x=" + screenX + " y=" + screenY
+                setPointerEvent("Event: mouse/touch drag x=" + screenX + " y=" + screenY
                     + " angle=" + format(dragVector.angleDeg()));
                 return true;
             }
@@ -238,7 +247,7 @@ public class JoystickDemo extends ApplicationAdapter {
                     return false;
                 }
 
-                setPointerEvent("当前事件：鼠标/触摸抬起 button=" + mouseButtonName(button)
+                setPointerEvent("Event: mouse/touch up button=" + mouseButtonName(button)
                     + " x=" + screenX + " y=" + screenY);
                 releasePointer();
                 return true;
@@ -246,25 +255,25 @@ public class JoystickDemo extends ApplicationAdapter {
 
             @Override
             public boolean mouseMoved(int screenX, int screenY) {
-                setPointerEvent("当前事件：鼠标移动 x=" + screenX + " y=" + screenY);
+                setPointerEvent("Event: mouse move x=" + screenX + " y=" + screenY);
                 return false;
             }
 
             @Override
             public boolean scrolled(float amountX, float amountY) {
-                setPointerEvent("当前事件：鼠标滚轮 dx=" + format(amountX) + " dy=" + format(amountY));
+                setPointerEvent("Event: mouse wheel dx=" + format(amountX) + " dy=" + format(amountY));
                 return false;
             }
 
             @Override
             public boolean keyDown(int keycode) {
-                setKeyboardEvent("当前事件：键盘按下 " + Input.Keys.toString(keycode));
+                setKeyboardEvent("Event: key down " + Input.Keys.toString(keycode));
                 return false;
             }
 
             @Override
             public boolean keyUp(int keycode) {
-                setKeyboardEvent("当前事件：键盘抬起 " + Input.Keys.toString(keycode));
+                setKeyboardEvent("Event: key up " + Input.Keys.toString(keycode));
                 return false;
             }
         };
@@ -343,7 +352,7 @@ public class JoystickDemo extends ApplicationAdapter {
 
         String controllerName = controller.getName();
         controllerStatus = controllerName == null || controllerName.isBlank()
-            ? CONTROLLER_NAME_PREFIX + "已连接"
+            ? CONTROLLER_NAME_PREFIX + "connected"
             : CONTROLLER_NAME_PREFIX + controllerName;
 
         String controllerEvent = readControllerEvent(controller, controllerVector);
@@ -385,14 +394,14 @@ public class JoystickDemo extends ApplicationAdapter {
 
         if (Math.abs(x) >= CONTROLLER_EVENT_DEADZONE || Math.abs(y) >= CONTROLLER_EVENT_DEADZONE) {
             outDirection.set(x, y);
-            return "手柄事件：左摇杆 x=" + format(x) + " y=" + format(y) + " angle=" + format(angleOf(x, y));
+            return "Controller event: left stick x=" + format(x) + " y=" + format(y) + " angle=" + format(angleOf(x, y));
         }
 
         float dpadX = readButtonAxis(controller, mapping.buttonDpadLeft, mapping.buttonDpadRight);
         float dpadY = readButtonAxis(controller, mapping.buttonDpadDown, mapping.buttonDpadUp);
         if (dpadX != 0f || dpadY != 0f) {
             outDirection.set(dpadX, dpadY);
-            return "手柄事件：方向键 x=" + format(dpadX) + " y=" + format(dpadY)
+            return "Controller event: D-pad x=" + format(dpadX) + " y=" + format(dpadY)
                 + " angle=" + format(angleOf(dpadX, dpadY));
         }
 
@@ -427,7 +436,7 @@ public class JoystickDemo extends ApplicationAdapter {
         }
 
         if (pressedButtons.length() > 0) {
-            return "手柄事件：按钮 " + pressedButtons;
+            return "Controller event: buttons " + pressedButtons;
         }
         return "";
     }
