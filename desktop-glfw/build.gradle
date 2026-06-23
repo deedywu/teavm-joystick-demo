@@ -466,6 +466,7 @@ configurations.configureEach {
 }
 
 dependencies {
+    implementation 'org.teavm:teavm-interop:0.16.0-dev-1'
     implementation project(':core')
 }
 

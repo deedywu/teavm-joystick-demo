@@ -9,6 +9,7 @@ This repository contains a small joystick indicator demo built with `libGDX`. It
 - Java 17+
 - Gradle Wrapper
 - libGDX 1.14.2
+- gdx-controllers 2.2.4
 - LWJGL3 desktop backend
 - TeaVM Native GLFW desktop backend
 - TeaVM web backend
@@ -34,6 +35,7 @@ Notes:
 
 - Launcher class: `com.libgdx.joystick.lwjgl3.Lwjgl3Launcher`
 - The desktop window opens with a default size of `960 x 640`
+- Supports mouse, keyboard, and gamepad/controller input
 
 ### Run the web version
 
@@ -46,6 +48,7 @@ Notes:
 - Build entry: `com.libgdx.joystick.web.TeaVMBuilder`
 - Web launcher: `com.libgdx.joystick.web.TeaVMLauncher`
 - Local preview URL: `http://localhost:8089`
+- Supports mouse, keyboard, and browser Gamepad API input
 
 ### Run the TeaVM Native GLFW desktop version
 
@@ -85,6 +88,7 @@ Notes:
 - Optional cleanup for the synced project source: `:desktop-glfw:freetype_clean_source`
 - Do not run `com.libgdx.joystick.glfw.GlfwLauncher` directly from the IDE
 - For day-to-day gameplay debugging, `:desktop-lwjgl3` is usually the better choice
+- Supports mouse, keyboard, and native GLFW gamepad input
 - Windows setup guide: [readme-win11(msvc).md](<desktop-glfw/readme-win11(msvc).md>)
 - WSL2 Ubuntu 24.04 setup guide: [readme-wsl2(ubuntu2404).md](<desktop-glfw/readme-wsl2(ubuntu2404).md>)
 - macOS arm64 setup guide: [readme-mac(arm64).md](<desktop-glfw/readme-mac(arm64).md>)
@@ -110,6 +114,7 @@ Recommended usage:
 ## Project Structure
 
 - `core`: core game logic
+- `core` also reads the standard `Controllers` API directly for controller state
 - `desktop-lwjgl3`: regular desktop launcher
 - `web-teavm`: web build and preview module
 - `desktop-glfw`: TeaVM Native GLFW desktop module
@@ -117,7 +122,12 @@ Recommended usage:
 
 ## What It Does
 
-The demo draws a joystick base at the center of the screen. When you click or drag, the arrow rotates in real time based on the drag direction.
+The demo draws a joystick base at the center of the screen. It now acts as a small input tester:
+
+- Mouse / touch dragging rotates the arrow in real time
+- Keyboard input is shown in the on-screen event text
+- Gamepad / controller input is supported on desktop, web, and TeaVM Native GLFW builds
+- The bottom HUD shows the current I/O source, connected controller name, and the latest input event
 
 ## Common Commands
 

@@ -9,6 +9,7 @@
 - Java 17+
 - Gradle Wrapper
 - libGDX 1.14.2
+- gdx-controllers 2.2.4
 - LWJGL3 桌面后端
 - TeaVM Native GLFW 原生桌面后端
 - TeaVM Web 后端
@@ -34,6 +35,7 @@
 
 - 启动入口：`com.libgdx.joystick.lwjgl3.Lwjgl3Launcher`
 - 启动后会打开桌面窗口，默认大小为 `960 x 640`
+- 支持鼠标、键盘和手柄 / controller 输入
 
 ### 运行网页版
 
@@ -46,6 +48,7 @@
 - 构建入口：`com.libgdx.joystick.web.TeaVMBuilder`
 - Web 启动入口：`com.libgdx.joystick.web.TeaVMLauncher`
 - 本地预览地址：`http://localhost:8089`
+- 支持鼠标、键盘和浏览器 Gamepad API 输入
 
 ### 运行 TeaVM Native GLFW 原生桌面版
 
@@ -85,6 +88,7 @@ macOS arm64：
 - 如需清理同步后的项目内源码，可执行 `:desktop-glfw:freetype_clean_source`
 - 不要直接在 IDE 里运行 `com.libgdx.joystick.glfw.GlfwLauncher`
 - 日常调试游戏逻辑更适合 `:desktop-lwjgl3`
+- 支持鼠标、键盘和原生 GLFW 手柄输入
 - Windows 11 + MSVC 环境说明见 [readme-win11(msvc).zh-CN.md](<desktop-glfw/readme-win11(msvc).zh-CN.md>)
 - WSL2 Ubuntu 24.04 环境说明见 [readme-wsl2(ubuntu2404).zh-CN.md](<desktop-glfw/readme-wsl2(ubuntu2404).zh-CN.md>)
 - macOS arm64 环境说明见 [readme-mac(arm64).zh-CN.md](<desktop-glfw/readme-mac(arm64).zh-CN.md>)
@@ -110,6 +114,7 @@ macOS arm64：
 ## 项目结构
 
 - `core`：核心游戏逻辑
+- `core`：同时直接读取标准 `Controllers` API 的手柄状态
 - `desktop-lwjgl3`：普通桌面启动模块
 - `web-teavm`：网页端构建与预览模块
 - `desktop-glfw`：TeaVM Native GLFW 原生桌面模块
@@ -117,7 +122,12 @@ macOS arm64：
 
 ## 功能说明
 
-程序会在屏幕中心显示一个方向底座，点击或按住拖动后，箭头会根据拖动方向实时旋转，用于演示方向输入效果。
+程序会在屏幕中心显示一个方向底座，现在同时也是一个小型输入测试器：
+
+- 鼠标 / 触摸拖拽时，箭头会根据方向实时旋转
+- 键盘输入会显示在界面底部的事件文本中
+- 桌面、Web 和 TeaVM Native GLFW 三个版本都支持手柄 / controller 输入
+- 底部 HUD 会显示当前 I/O 来源、已连接手柄名称，以及最近一次输入事件
 
 ## 常用命令
 

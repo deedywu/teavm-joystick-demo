@@ -19,6 +19,8 @@ java.targetCompatibility = 17
 dependencies {
     implementation "com.github.xpenatan.gdx-teavm:backend-web:$gdxTeaVMVersion"
     implementation "com.github.xpenatan.gdx-teavm:backend-web:$gdxTeaVMVersion:sources"
+    implementation "com.github.xpenatan.gdx-teavm:gdx-controllers-teavm:$gdxTeaVMVersion"
+    implementation "com.badlogicgames.gdx-controllers:gdx-controllers-core:2.2.4"
     implementation "com.github.xpenatan.gdx-teavm:gdx-freetype-teavm:$gdxTeaVMVersion"
     implementation "com.github.xpenatan.gdx-teavm:gdx-freetype-teavm:$gdxTeaVMVersion:sources"
     implementation project(':core')
