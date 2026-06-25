@@ -78,6 +78,8 @@ def localFreetypeSourceDir = file("$projectDir/native/thirdparty/freetype")
 def cachedFreetypeRootDir = rootProject.file(".gradle/desktop-glfw/freetype")
 def cachedFreetypeSourceDir = new File(cachedFreetypeRootDir, 'source')
 def cachedFreetypeGitConfigFile = new File(cachedFreetypeSourceDir, '.git/config')
+def nativeCMakeTemplateFile = file("$projectDir/native/cmake/CMakeLists.txt")
+def nativeRuntimeOverridesDir = file("$projectDir/native/runtime-overrides")
 
 def isPreparedFreetypeSource = { File dir ->
     dir.isDirectory()
@@ -291,83 +293,43 @@ if exist "${visualStudioMsBuild.file.path}" (
     scriptFile.write(script, 'UTF-8')
 }
 
-def patchGeneratedCMake = { File cmakeFile ->
-    if (!cmakeFile.isFile()) {
+def syncRuntimeOverride = { File sourceFile, File targetFile ->
+    if (!sourceFile.isFile()) {
         return
     }
 
-    String cmake = cmakeFile.getText('UTF-8')
-    String marker = 'include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/stb/include")'
-    String includeBlock = marker + '''
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/freetype")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype/include")
-'''
+    targetFile.parentFile.mkdirs()
+    project.copy {
+        from(sourceFile)
+        into(targetFile.parentFile)
+        rename { targetFile.name }
+    }
+}
 
-    if (cmake.contains(marker) && !cmake.contains('external_cpp/src/freetype/include')) {
-        cmake = cmake.replace(marker, includeBlock)
+def renderManagedCMake = { File cmakeFile ->
+    if (!nativeCMakeTemplateFile.isFile()) {
+        return
     }
 
-    String sourceMarker = '# Collect external C++ sources from etc1'
-    String sourceBlock = '''
-set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype"
-                 "${CMAKE_CURRENT_BINARY_DIR}/freetype-build"
-                 EXCLUDE_FROM_ALL)
-
-# Collect freetype bridge sources
-file(GLOB_RECURSE EXTERNAL_SOURCES_FREETYPE "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/src/*.c")
-list(APPEND SOURCES ${EXTERNAL_SOURCES_FREETYPE})
-
-''' + sourceMarker
-
-    if (cmake.contains(sourceMarker) && !cmake.contains('EXTERNAL_SOURCES_FREETYPE')) {
-        cmake = cmake.replace(sourceMarker, sourceBlock)
+    // Keep the generated CMake project deterministic by rendering a repo-owned template.
+    String cmake = nativeCMakeTemplateFile.getText('UTF-8')
+    Map<String, String> replacements = [
+        '@APP_OUTPUT_DIR@': file("$buildDir/dist/glfw/c/release").absolutePath.replace('\\', '/')
+    ]
+    replacements.each { key, value ->
+        cmake = cmake.replace(key, value)
     }
 
-    String winLinkMarker = 'target_link_libraries(app glfw3 opengl32 glew32s)'
-    if (cmake.contains(winLinkMarker)
-        && !cmake.contains('target_link_libraries(app glfw3 opengl32 glew32s freetype)')) {
-        cmake = cmake.replace(winLinkMarker, 'target_link_libraries(app glfw3 opengl32 glew32s freetype)')
-    }
-
-    String unixLinkMarker = 'target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW m)'
-    if (cmake.contains(unixLinkMarker) && !cmake.contains('GLEW::GLEW freetype m')) {
-        cmake = cmake.replace(unixLinkMarker, 'target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW freetype m)')
-    }
-
-    String compileOptionMarker = 'if (MSVC)'
-    String compileOptionBlock = '''
-set(GDX2D_FREETYPE_BRIDGE_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/gdx2d_freetype_bridge.h")
-
-if (UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND TARGET freetype)
-  target_compile_definitions(freetype PRIVATE _DEFAULT_SOURCE HAVE_UNISTD_H HAVE_FCNTL_H)
-endif()
-
-if (MSVC)
-  target_compile_options(app PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  if (TARGET freetype)
-    target_compile_options(freetype PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  endif()
-elseif (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(app PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  if (TARGET freetype)
-    target_compile_options(freetype PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  endif()
-endif()
-
-''' + compileOptionMarker
-
-    if (cmake.contains(compileOptionMarker) && !cmake.contains('GDX2D_FREETYPE_BRIDGE_HEADER')) {
-        cmake = cmake.replace(compileOptionMarker, compileOptionBlock)
-    }
-
+    cmakeFile.parentFile.mkdirs()
     cmakeFile.write(cmake, 'UTF-8')
+}
+
+def patchGeneratedArtifacts = {
+    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_debug.bat"))
+    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_release.bat"))
+    renderManagedCMake(file("$buildDir/dist/glfw/CMakeLists.txt"))
+    syncRuntimeOverride(file("$nativeRuntimeOverridesDir/uchar.h"), file("$buildDir/dist/glfw/c/src/uchar.h"))
+    syncRuntimeOverride(file("$nativeRuntimeOverridesDir/fiber.c"), file("$buildDir/dist/glfw/c/src/fiber.c"))
 }
 
 def syncNativeFreeTypeFiles = {
@@ -490,18 +452,12 @@ gdxTeaVM {
     }
 }
 
-def patchGeneratedWindowsScripts = {
-    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_debug.bat"))
-    patchGeneratedWindowsScript(file("$buildDir/dist/glfw/app_release.bat"))
-    patchGeneratedCMake(file("$buildDir/dist/glfw/CMakeLists.txt"))
-}
-
 tasks.named('generateC').configure {
     dependsOn freetype_sync_source
 
     doLast {
         syncNativeFreeTypeFiles()
-        patchGeneratedWindowsScripts()
+        patchGeneratedArtifacts()
     }
 }
 
@@ -509,10 +465,17 @@ gradle.projectsEvaluated {
     tasks.matching { it.name in ['gdx_teavm_glfw_generate', 'gdx_teavm_glfw_build', 'gdx_teavm_glfw_run'] }.configureEach { task ->
         dependsOn freetype_sync_source
 
+        if (task.name != 'gdx_teavm_glfw_generate') {
+            doFirst {
+                syncNativeFreeTypeFiles()
+                patchGeneratedArtifacts()
+            }
+        }
+
         doLast {
             if (task.name == 'gdx_teavm_glfw_generate') {
                 syncNativeFreeTypeFiles()
-                patchGeneratedWindowsScripts()
+                patchGeneratedArtifacts()
             }
         }
     }
