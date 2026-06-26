@@ -130,7 +130,6 @@ public class JoystickDemo extends ApplicationAdapter {
         batch.dispose();
         stage.dispose();
         skin.dispose();
-        guideFont.dispose();
         centerTexture.dispose();
         arrowTexture.dispose();
     }

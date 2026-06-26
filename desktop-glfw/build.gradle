@@ -1,5 +1,6 @@
 buildscript {
     repositories {
+        mavenLocal()
         google()
         mavenCentral()
         maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
@@ -72,189 +73,8 @@ def findVisualStudioTool = { String relativePath ->
 def visualStudioCMake = findVisualStudioTool('Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe')
 def visualStudioMsBuild = findVisualStudioTool('MSBuild/Current/Bin/MSBuild.exe')
 
-def freetypeRepositoryUrl = 'https://github.com/freetype/freetype.git'
-def freetypeTrackingBranch = 'gdx-teavm-freetype-latest'
-def localFreetypeSourceDir = file("$projectDir/native/thirdparty/freetype")
-def cachedFreetypeRootDir = rootProject.file(".gradle/desktop-glfw/freetype")
-def cachedFreetypeSourceDir = new File(cachedFreetypeRootDir, 'source')
-def cachedFreetypeGitConfigFile = new File(cachedFreetypeSourceDir, '.git/config')
 def nativeCMakeTemplateFile = file("$projectDir/native/cmake/CMakeLists.txt")
 def nativeRuntimeOverridesDir = file("$projectDir/native/runtime-overrides")
-
-def isPreparedFreetypeSource = { File dir ->
-    dir.isDirectory()
-        && new File(dir, 'CMakeLists.txt').isFile()
-        && new File(dir, 'include/ft2build.h').isFile()
-}
-
-def forceDownloadFreetypeSource = {
-    String forceDownload = providers.gradleProperty('glfwFreetypeForceDownload').orNull
-    return forceDownload != null && forceDownload.toBoolean()
-}
-
-def useLocalFreetypeSource = {
-    if (forceDownloadFreetypeSource()) {
-        return false
-    }
-    return isPreparedFreetypeSource(localFreetypeSourceDir)
-}
-
-def shouldRefreshFreetypeSource = {
-    String refresh = providers.gradleProperty('glfwFreetypeRefresh').orNull
-    if (refresh != null) {
-        return refresh.toBoolean()
-    }
-
-    def requestedTasks = gradle.startParameter.taskNames.collect { it.tokenize(':').last() }
-    return requestedTasks.contains('freetype_sync_source')
-}
-
-def resolveProxyUrl = { String gradlePropertyName, String upperEnvName, String lowerEnvName, String systemPropertyPrefix ->
-    String directProperty = providers.gradleProperty(gradlePropertyName).orNull
-    if (directProperty != null && !directProperty.isBlank()) {
-        return directProperty
-    }
-
-    String envValue = System.getenv(upperEnvName) ?: System.getenv(lowerEnvName)
-    if (envValue != null && !envValue.isBlank()) {
-        return envValue
-    }
-
-    if (systemPropertyPrefix == null) {
-        return null
-    }
-
-    String host = System.getProperty("${systemPropertyPrefix}.proxyHost")
-    String port = System.getProperty("${systemPropertyPrefix}.proxyPort")
-    if (host != null && !host.isBlank()) {
-        return port != null && !port.isBlank() ? "http://${host}:${port}" : "http://${host}"
-    }
-
-    return null
-}
-
-def gitProxyEnvironment = {
-    Map<String, String> env = [:]
-
-    [
-        HTTP_PROXY : resolveProxyUrl('glfwFreetypeHttpProxy', 'HTTP_PROXY', 'http_proxy', 'http'),
-        HTTPS_PROXY: resolveProxyUrl('glfwFreetypeHttpsProxy', 'HTTPS_PROXY', 'https_proxy', 'https'),
-        ALL_PROXY  : resolveProxyUrl('glfwFreetypeAllProxy', 'ALL_PROXY', 'all_proxy', null)
-    ].each { key, value ->
-        if (value != null && !value.isBlank()) {
-            env[key] = value
-            env[key.toLowerCase()] = value
-        }
-    }
-
-    return env
-}
-
-def resolveFreetypeSourceDir = {
-    File resolvedDir = localFreetypeSourceDir
-    if (!isPreparedFreetypeSource(resolvedDir)) {
-        throw new GradleException(
-            "FreeType source is not ready at ${resolvedDir}. Run :desktop-glfw:freetype_sync_source " +
-                "or rerun the GLFW build with network access."
-        )
-    }
-    return resolvedDir
-}
-
-def deleteDirectoryWithRetries = { File dir, String description ->
-    if (!dir.exists()) {
-        return
-    }
-
-    int attempts = 5
-    for (int attempt = 1; attempt <= attempts; attempt++) {
-        if (project.delete(dir) || !dir.exists()) {
-            return
-        }
-
-        if (attempt < attempts) {
-            logger.lifecycle("Retrying delete of ${description}: attempt ${attempt + 1}/${attempts}")
-            sleep(500L * attempt)
-        }
-    }
-
-    throw new GradleException(
-        "Unable to delete ${description} at ${dir}. Close any process that still holds files there " +
-            "and rerun the task."
-    )
-}
-
-def isExpectedFreetypeRepository = {
-    cachedFreetypeGitConfigFile.isFile()
-        && cachedFreetypeGitConfigFile.getText('UTF-8').contains("url = ${freetypeRepositoryUrl}")
-}
-
-def runGitCommand = { File gitWorkingDir, List<String> args ->
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream()
-    ByteArrayOutputStream stderr = new ByteArrayOutputStream()
-
-    def result = project.exec {
-        workingDir = gitWorkingDir
-        commandLine(['git'] + args)
-        environment gitProxyEnvironment()
-        ignoreExitValue = true
-        standardOutput = stdout
-        errorOutput = stderr
-    }
-
-    if (result.exitValue != 0) {
-        String errorText = stderr.toString('UTF-8').trim()
-        if (errorText.isBlank()) {
-            errorText = stdout.toString('UTF-8').trim()
-        }
-        throw new GradleException(
-            "Git command failed in ${gitWorkingDir}: git ${args.join(' ')}" +
-                (errorText.isBlank() ? '' : System.lineSeparator() + errorText)
-        )
-    }
-
-    return stdout.toString('UTF-8')
-}
-
-def refreshCachedFreetypeSource = {
-    cachedFreetypeRootDir.mkdirs()
-
-    boolean hasGitCheckout = cachedFreetypeGitConfigFile.isFile()
-    if (!hasGitCheckout) {
-        deleteDirectoryWithRetries(cachedFreetypeSourceDir, 'cached FreeType source directory')
-        logger.lifecycle("Cloning latest FreeType from ${freetypeRepositoryUrl}")
-        runGitCommand(cachedFreetypeRootDir, ['clone', '--depth', '1', freetypeRepositoryUrl, 'source'])
-    } else {
-        if (!isExpectedFreetypeRepository()) {
-            logger.lifecycle("Rebuilding invalid FreeType cache in ${cachedFreetypeSourceDir}")
-            deleteDirectoryWithRetries(cachedFreetypeSourceDir, 'invalid cached FreeType source directory')
-            runGitCommand(cachedFreetypeRootDir, ['clone', '--depth', '1', freetypeRepositoryUrl, 'source'])
-        } else {
-            logger.lifecycle("Fetching latest FreeType updates in ${cachedFreetypeSourceDir}")
-            runGitCommand(cachedFreetypeSourceDir, ['fetch', '--depth', '1', 'origin'])
-        }
-    }
-
-    runGitCommand(cachedFreetypeSourceDir, ['remote', 'set-head', 'origin', '-a'])
-
-    runGitCommand(cachedFreetypeSourceDir, ['checkout', '--force', '-B', freetypeTrackingBranch, 'origin/HEAD'])
-
-    runGitCommand(cachedFreetypeSourceDir, ['clean', '-fd'])
-}
-
-def syncPreparedFreetypeSourceToProject = {
-    if (!isPreparedFreetypeSource(cachedFreetypeSourceDir)) {
-        throw new GradleException("Cached FreeType source is incomplete at ${cachedFreetypeSourceDir}")
-    }
-
-    deleteDirectoryWithRetries(localFreetypeSourceDir, 'project FreeType source directory')
-    localFreetypeSourceDir.parentFile.mkdirs()
-    project.copy {
-        from(cachedFreetypeSourceDir)
-        into(localFreetypeSourceDir)
-        exclude '.git/**'
-    }
-}
 
 def patchGeneratedWindowsScript = { File scriptFile ->
     if (!scriptFile.isFile()) {
@@ -332,88 +152,6 @@ def patchGeneratedArtifacts = {
     syncRuntimeOverride(file("$nativeRuntimeOverridesDir/fiber.c"), file("$buildDir/dist/glfw/c/src/fiber.c"))
 }
 
-def syncNativeFreeTypeFiles = {
-    File freetypeSourceDir = resolveFreetypeSourceDir()
-    [
-        [from: file("$projectDir/native/src/freetype"), into: file("$buildDir/dist/glfw/c/external_cpp/src/freetype")],
-        [from: freetypeSourceDir, into: file("$buildDir/dist/glfw/c/external_cpp/thirdparty/freetype")]
-    ].each { spec ->
-        if (!spec.from.isDirectory()) {
-            return
-        }
-
-        if (spec.into.exists()) {
-            spec.into.deleteDir()
-        }
-        spec.into.parentFile.mkdirs()
-        project.copy {
-            from(spec.from)
-            into(spec.into)
-        }
-    }
-}
-
-def freetype_sync_source = tasks.register('freetype_sync_source') {
-    group = 'extensions'
-    description = 'Prepares the latest FreeType source tree and syncs it into desktop-glfw/native/thirdparty/freetype.'
-
-    outputs.dir(cachedFreetypeSourceDir)
-    outputs.upToDateWhen {
-        !shouldRefreshFreetypeSource()
-            && isPreparedFreetypeSource(cachedFreetypeSourceDir)
-            && isPreparedFreetypeSource(localFreetypeSourceDir)
-    }
-
-    doLast {
-        if (forceDownloadFreetypeSource()) {
-            deleteDirectoryWithRetries(cachedFreetypeSourceDir, 'cached FreeType source directory')
-        }
-
-        boolean hadUsableCache = isPreparedFreetypeSource(cachedFreetypeSourceDir)
-        boolean needsRefresh = forceDownloadFreetypeSource() || !hadUsableCache || shouldRefreshFreetypeSource()
-
-        if (!needsRefresh) {
-            logger.lifecycle("Using cached FreeType source at ${cachedFreetypeSourceDir}")
-            syncPreparedFreetypeSourceToProject()
-            return
-        }
-
-        try {
-            refreshCachedFreetypeSource()
-        } catch (Exception ex) {
-            if (hadUsableCache && isPreparedFreetypeSource(cachedFreetypeSourceDir) && !forceDownloadFreetypeSource()) {
-                logger.warn("Unable to refresh FreeType from remote, continuing with cached source: ${ex.message}")
-            } else {
-                throw ex
-            }
-        }
-
-        if (!isPreparedFreetypeSource(cachedFreetypeSourceDir)) {
-            throw new GradleException("Downloaded FreeType source is incomplete at ${cachedFreetypeSourceDir}")
-        }
-
-        syncPreparedFreetypeSourceToProject()
-    }
-}
-
-tasks.register('freetype_clean_cache') {
-    group = 'extensions'
-    description = 'Deletes the cached FreeType source downloaded for the desktop-glfw native build.'
-
-    doLast {
-        deleteDirectoryWithRetries(cachedFreetypeRootDir, 'cached FreeType root directory')
-    }
-}
-
-tasks.register('freetype_clean_source') {
-    group = 'extensions'
-    description = 'Deletes the synced FreeType source under desktop-glfw/native/thirdparty/freetype.'
-
-    doLast {
-        deleteDirectoryWithRetries(localFreetypeSourceDir, 'legacy local FreeType checkout')
-    }
-}
-
 sourceCompatibility = 17
 targetCompatibility = 17
 
@@ -428,13 +166,38 @@ configurations.configureEach {
 }
 
 dependencies {
-    implementation files('libs/gdx-controllers-glfw-1.5.6.jar')
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'org.teavm:teavm-interop:0.15.0'
     implementation project(':core')
 }
 
+def manualBuilderMainClass = 'com.libgdx.joystick.glfw.BuildDesktopGlfwTeaVM'
+
+tasks.register('manual_teavm_glfw_generate', JavaExec) {
+    group = 'gdx-teavm-manual'
+    description = 'Generate TeaVM C sources for the GLFW native launcher using the manual builder path.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set(manualBuilderMainClass)
+    args 'Debug'
+}
+
+tasks.register('manual_teavm_glfw_build', JavaExec) {
+    group = 'gdx-teavm-manual'
+    description = 'Generate TeaVM C sources and build the GLFW native launcher using the manual builder path.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set(manualBuilderMainClass)
+    args 'Debug', 'build'
+}
+
+tasks.register('manual_teavm_glfw_run', JavaExec) {
+    group = 'gdx-teavm-manual'
+    description = 'Generate, build, and run the GLFW native launcher using the manual builder path.'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set(manualBuilderMainClass)
+    args 'Debug', 'run'
+}
+
 configurations.configureEach {
-    exclude group: 'com.badlogicgames.gdx', module: 'gdx-freetype'
 }
 
 gdxTeaVM {
@@ -445,36 +208,23 @@ gdxTeaVM {
         minHeapSizeMb.set(64)
         maxHeapSizeMb.set(512)
         buildType.set('Debug')
-        buildExecutable.set(false)
-        runExecutable.set(false)
+        buildExecutable.set(true)
+        runExecutable.set(true)
         consoleLog.set(true)
         obfuscated.set(false)
     }
 }
 
-tasks.named('generateC').configure {
-    dependsOn freetype_sync_source
-
-    doLast {
-        syncNativeFreeTypeFiles()
-        patchGeneratedArtifacts()
-    }
-}
-
 gradle.projectsEvaluated {
-    tasks.matching { it.name in ['gdx_teavm_glfw_generate', 'gdx_teavm_glfw_build', 'gdx_teavm_glfw_run'] }.configureEach { task ->
-        dependsOn freetype_sync_source
-
-        if (task.name != 'gdx_teavm_glfw_generate') {
+    tasks.matching { it.name in ['generateC', 'gdx_teavm_glfw_generate', 'gdx_teavm_glfw_build', 'gdx_teavm_glfw_run'] }.configureEach { task ->
+        if (task.name in ['generateC', 'gdx_teavm_glfw_build', 'gdx_teavm_glfw_run']) {
             doFirst {
-                syncNativeFreeTypeFiles()
                 patchGeneratedArtifacts()
             }
         }
 
         doLast {
-            if (task.name == 'gdx_teavm_glfw_generate') {
-                syncNativeFreeTypeFiles()
+            if (task.name in ['generateC', 'gdx_teavm_glfw_generate']) {
                 patchGeneratedArtifacts()
             }
         }

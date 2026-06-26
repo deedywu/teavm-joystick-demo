@@ -25,12 +25,7 @@ if (UNIX)
 endif()
 
 if (WIN32)
-  # Define GLEW_STATIC
   add_definitions(-DGLEW_STATIC)
-endif()
-
-if (WIN32)
-# Include directories - using CMAKE_CURRENT_SOURCE_DIR
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/glfw/include")
   include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/glew-2.3.0/include")
 endif()
@@ -41,12 +36,15 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_optimizati
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_optimizations/teavm")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_stats")
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/stb/include")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/freetype")
-include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype/include")
+
+set(GDX_FREETYPE_BRIDGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype")
+set(GDX_FREETYPE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype")
+
+if(EXISTS "${GDX_FREETYPE_BRIDGE_SOURCE_DIR}/CMakeLists.txt" AND EXISTS "${GDX_FREETYPE_SOURCE_DIR}/CMakeLists.txt")
+  add_subdirectory("${GDX_FREETYPE_BRIDGE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/freetype-build" EXCLUDE_FROM_ALL)
+endif()
 
 if (WIN32)
-  # Link directories
   link_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/glfw/lib-vc2022")
   link_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/glew-2.3.0/lib/Release/x64")
 endif()
@@ -69,6 +67,7 @@ list(APPEND SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_optimizations/teavm/teavm_fastmath.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_optimizations/teavm/teavm_matrix4.c"
 )
+
 set(TEAVM_GENERATED_SOURCES_LIST "${CMAKE_CURRENT_SOURCE_DIR}/c/src/all.txt")
 set(TEAVM_SPRITEBATCH_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/teavm_optimizations/teavm/teavm_spritebatch.c")
 set(TEAVM_SPRITEBATCH_LONG_SOURCE_PATH "classes/com/badlogic/gdx/graphics/g2d/SpriteBatch.c")
@@ -100,20 +99,6 @@ if(EXISTS "${TEAVM_SPRITEBATCH_SOURCE}" AND TEAVM_SPRITEBATCH_GENERATED)
   list(APPEND SOURCES "${TEAVM_SPRITEBATCH_SOURCE}")
 endif()
 
-set(FT_DISABLE_ZLIB ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BZIP2 ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_PNG ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_BROTLI ON CACHE BOOL "" FORCE)
-set(FT_DISABLE_HARFBUZZ ON CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype"
-                 "${CMAKE_CURRENT_BINARY_DIR}/freetype-build"
-                 EXCLUDE_FROM_ALL)
-
-# Collect freetype bridge sources
-file(GLOB_RECURSE EXTERNAL_SOURCES_FREETYPE "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/src/*.c")
-list(APPEND SOURCES ${EXTERNAL_SOURCES_FREETYPE})
-
 # Collect external C++ sources from etc1
 file(GLOB_RECURSE EXTERNAL_SOURCES_2 "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/etc1/etc1/*.cpp")
 list(APPEND SOURCES ${EXTERNAL_SOURCES_2})
@@ -123,24 +108,6 @@ add_executable(app ${SOURCES})
 
 if(TEAVM_SPRITEBATCH_SHORT_HEADERS)
   target_compile_definitions(app PRIVATE TEAVM_GENERATED_SHORT_FILE_NAMES=1)
-endif()
-
-set(GDX2D_FREETYPE_BRIDGE_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype/include/gdx2d_freetype_bridge.h")
-
-if (UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND TARGET freetype)
-  target_compile_definitions(freetype PRIVATE _DEFAULT_SOURCE HAVE_UNISTD_H HAVE_FCNTL_H)
-endif()
-
-if (MSVC)
-  target_compile_options(app PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  if (TARGET freetype)
-    target_compile_options(freetype PRIVATE /FI"${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  endif()
-elseif (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(app PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  if (TARGET freetype)
-    target_compile_options(freetype PRIVATE -include "${GDX2D_FREETYPE_BRIDGE_HEADER}")
-  endif()
 endif()
 
 if (MSVC)
@@ -158,17 +125,19 @@ set_target_properties(app PROPERTIES
     OUTPUT_NAME "app_$<IF:$<CONFIG:Debug>,debug,release>")
 
 if (WIN32)
-  # Set Visual Studio debugger working directory
   set_target_properties(app PROPERTIES
       VS_DEBUGGER_WORKING_DIRECTORY "@APP_OUTPUT_DIR@")
-  # Link libraries
-  target_link_libraries(app glfw3 opengl32 glew32s freetype)
 
-  # Set startup project for Visual Studio
+  target_link_libraries(app glfw3 opengl32 glew32s)
+
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT app)
 endif()
 if (UNIX)
-  target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW freetype m)
+  target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW m)
+endif()
+
+if(TARGET gdx2d_freetype_bridge)
+  target_link_libraries(app PRIVATE gdx2d_freetype_bridge)
 endif()
 
 set_target_properties(app PROPERTIES
