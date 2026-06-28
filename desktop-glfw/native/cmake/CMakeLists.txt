@@ -39,8 +39,22 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/stb/include")
 
 set(GDX_FREETYPE_BRIDGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/src/freetype")
 set(GDX_FREETYPE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/c/external_cpp/thirdparty/freetype")
+set(GDX_FREETYPE_BRIDGE_INCLUDE_DIR "${GDX_FREETYPE_BRIDGE_SOURCE_DIR}/include")
+set(GDX_FREETYPE_BRIDGE_HEADER "${GDX_FREETYPE_BRIDGE_INCLUDE_DIR}/gdx2d_freetype_bridge.h")
+set(GDX2D_FREETYPE_BRIDGE_PREBUILT_LIB "${CMAKE_CURRENT_SOURCE_DIR}/c/release/assets/gdx2d_freetype_bridge.lib")
+set(GDX2D_FREETYPE_BRIDGE_PREBUILT_DLL "${CMAKE_CURRENT_SOURCE_DIR}/c/release/assets/gdx2d_freetype_bridge.dll")
+set(GDX2D_FREETYPE_BRIDGE_PREBUILT_SO "${CMAKE_CURRENT_SOURCE_DIR}/c/release/assets/libgdx2d_freetype_bridge.so")
+set(GDX_FREETYPE_USE_PREBUILT FALSE)
 
-if(EXISTS "${GDX_FREETYPE_BRIDGE_SOURCE_DIR}/CMakeLists.txt" AND EXISTS "${GDX_FREETYPE_SOURCE_DIR}/CMakeLists.txt")
+if(WIN32 AND EXISTS "${GDX2D_FREETYPE_BRIDGE_PREBUILT_LIB}")
+  set(GDX_FREETYPE_USE_PREBUILT TRUE)
+endif()
+
+if(UNIX AND EXISTS "${GDX2D_FREETYPE_BRIDGE_PREBUILT_SO}")
+  set(GDX_FREETYPE_USE_PREBUILT TRUE)
+endif()
+
+if(NOT GDX_FREETYPE_USE_PREBUILT AND EXISTS "${GDX_FREETYPE_BRIDGE_SOURCE_DIR}/CMakeLists.txt" AND EXISTS "${GDX_FREETYPE_SOURCE_DIR}/CMakeLists.txt")
   add_subdirectory("${GDX_FREETYPE_BRIDGE_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/freetype-build" EXCLUDE_FROM_ALL)
 endif()
 
@@ -130,14 +144,33 @@ if (WIN32)
 
   target_link_libraries(app glfw3 opengl32 glew32s)
 
+  if(GDX_FREETYPE_USE_PREBUILT)
+    target_link_libraries(app "${GDX2D_FREETYPE_BRIDGE_PREBUILT_LIB}")
+
+    if(EXISTS "${GDX2D_FREETYPE_BRIDGE_PREBUILT_DLL}")
+      add_custom_command(TARGET app POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                  "${GDX2D_FREETYPE_BRIDGE_PREBUILT_DLL}"
+                  "$<TARGET_FILE_DIR:app>")
+    endif()
+  endif()
+
   set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT app)
 endif()
 if (UNIX)
   target_link_libraries(app PRIVATE OpenGL::GL glfw GLEW::GLEW m)
+
+  if(GDX_FREETYPE_USE_PREBUILT)
+    target_link_libraries(app PRIVATE "${GDX2D_FREETYPE_BRIDGE_PREBUILT_SO}")
+  endif()
 endif()
 
-if(TARGET gdx2d_freetype_bridge)
-  target_link_libraries(app PRIVATE gdx2d_freetype_bridge)
+if(NOT GDX_FREETYPE_USE_PREBUILT AND TARGET gdx2d_freetype_bridge)
+  if(UNIX)
+    target_link_libraries(app PRIVATE gdx2d_freetype_bridge)
+  else()
+    target_link_libraries(app gdx2d_freetype_bridge)
+  endif()
 endif()
 
 set_target_properties(app PROPERTIES
